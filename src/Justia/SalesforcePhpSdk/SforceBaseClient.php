@@ -230,6 +230,50 @@ class SforceBaseClient
         $this->sforce->__setLocation($location);
     }
 
+    /**
+     * Starts a SOAP session with an OAuth access token instead of the SOAP
+     * login operation.
+     *
+     * The caller must create the SOAP connection before calling this method.
+     * Salesforce returns instance_url with OAuth token responses, which is used
+     * to build the versioned SOAP endpoint.
+     *
+     * @param string $accessToken OAuth access token
+     * @param string $instanceUrl Salesforce instance URL from the OAuth response
+     * @param string $apiVersion SOAP API version
+     * @param string $endpointType SOAP endpoint type, usually u for Partner API
+     * @return string SOAP endpoint
+     */
+    public function setOAuthSession($accessToken, $instanceUrl, $apiVersion = '67.0', $endpointType = 'u')
+    {
+        if (!$this->sforce) {
+            throw new Exception('Create a SOAP connection before setting an OAuth session.');
+        }
+
+        if (!is_string($accessToken) || trim($accessToken) === '') {
+            throw new Exception('An OAuth access token is required.');
+        }
+
+        if (!is_string($instanceUrl) || !preg_match('#^https://[^/]+/?$#i', $instanceUrl)) {
+            throw new Exception('A valid HTTPS Salesforce instance URL is required.');
+        }
+
+        if (!is_string($apiVersion) || !preg_match('/^[0-9]+\.[0-9]+$/', $apiVersion)) {
+            throw new Exception('A Salesforce SOAP API version in major.minor format is required.');
+        }
+
+        if (!is_string($endpointType) || !preg_match('/^[a-z]+$/i', $endpointType)) {
+            throw new Exception('A valid Salesforce SOAP endpoint type is required.');
+        }
+
+        $endpoint = rtrim($instanceUrl, '/') . '/services/Soap/' . strtolower($endpointType) . '/' . $apiVersion;
+
+        $this->setSessionHeader($accessToken);
+        $this->setEndpoint($endpoint);
+
+        return $endpoint;
+    }
+
     private function setHeaders($call = null)
     {
         $this->sforce->__setSoapHeaders(null);
